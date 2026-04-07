@@ -115,46 +115,46 @@
 
 /* Arbitrary default button config */
 #ifndef DEFAULT_BUTTON_UP
-	#define DEFAULT_BUTTON_UP     (-1)
+	#define DEFAULT_BUTTON_UP     (3)
 #endif
 #ifndef DEFAULT_BUTTON_DOWN
-	#define DEFAULT_BUTTON_DOWN   (-1)
+	#define DEFAULT_BUTTON_DOWN   (1)
 #endif
 #ifndef DEFAULT_BUTTON_LEFT
-	#define DEFAULT_BUTTON_LEFT   (-1)
+	#define DEFAULT_BUTTON_LEFT   (0)
 #endif
 #ifndef DEFAULT_BUTTON_RIGHT
-	#define DEFAULT_BUTTON_RIGHT  (-1)
+	#define DEFAULT_BUTTON_RIGHT  (2)
 #endif
 #ifndef DEFAULT_BUTTON_JUMP
-	#define DEFAULT_BUTTON_JUMP   (1)
+	#define DEFAULT_BUTTON_JUMP   (9)
 #endif
 #ifndef DEFAULT_BUTTON_SWIM
-	#define DEFAULT_BUTTON_SWIM   (1)
+	#define DEFAULT_BUTTON_SWIM   (11)
 #endif
 #ifndef DEFAULT_BUTTON_FIRE
-	#define DEFAULT_BUTTON_FIRE   (0)
+	#define DEFAULT_BUTTON_FIRE   (8)
 #endif
 #ifndef DEFAULT_BUTTON_CHANGE
-	#define DEFAULT_BUTTON_CHANGE (3)
+	#define DEFAULT_BUTTON_CHANGE (10)
 #endif
 #ifndef DEFAULT_BUTTON_ENTER
-	#define DEFAULT_BUTTON_ENTER  (0)
+	#define DEFAULT_BUTTON_ENTER  (4)
 #endif
 #ifndef DEFAULT_BUTTON_ESCAPE
-	#define DEFAULT_BUTTON_ESCAPE (5)
+	#define DEFAULT_BUTTON_ESCAPE (7)
 #endif
 #ifndef DEFAULT_BUTTON_STATS
-	#define DEFAULT_BUTTON_STATS  (-1)
+	#define DEFAULT_BUTTON_STATS  (12)
 #endif
 #ifndef DEFAULT_BUTTON_PAUSE
 	#define DEFAULT_BUTTON_PAUSE  (4)
 #endif
 #ifndef DEFAULT_BUTTON_YES
-	#define DEFAULT_BUTTON_YES    (-1)
+	#define DEFAULT_BUTTON_YES    (4)
 #endif
 #ifndef DEFAULT_BUTTON_NO
-	#define DEFAULT_BUTTON_NO     (-1)
+	#define DEFAULT_BUTTON_NO     (7)
 #endif
 
 /**

@@ -217,8 +217,8 @@ void Setup::save () {
 	file->storeChar(7);
 
 	// Write video settings
-	file->storeShort(video.getWidth());
-	file->storeShort(video.getHeight());
+	file->storeShort(video.getCanvasWidth());
+	file->storeShort(video.getCanvasHeight());
 
 #ifdef FULLSCREEN_ONLY
 	file->storeChar(1);

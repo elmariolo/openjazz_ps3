@@ -352,8 +352,8 @@ int JJ2Level::loadTiles (char* fileName) {
 
 	}
 
-	tileSet = createSurface(tileBuffer, TTOI(1), TTOI(tiles));
-	enableColorKey(tileSet, 0);
+	tileSet = video.createSurface(tileBuffer, TTOI(1), TTOI(tiles));
+	video.enableColorKey(tileSet, 0);
 
 	// Flip tiles
 	for (count = 0; count < TTOI(tiles); count++) {
@@ -368,8 +368,8 @@ int JJ2Level::loadTiles (char* fileName) {
 
 	}
 
-	flippedTileSet = createSurface(tileBuffer, TTOI(1), TTOI(tiles));
-	enableColorKey(flippedTileSet, 0);
+	flippedTileSet = video.createSurface(tileBuffer, TTOI(1), TTOI(tiles));
+	video.enableColorKey(flippedTileSet, 0);
 
 	delete[] tileBuffer;
 
@@ -584,7 +584,7 @@ int JJ2Level::load (char *fileName, bool checkpoint) {
 	video.clearScreen(0);
 
 	x = (canvasW >> 1) - ((strlen(string) + 6) << 2);
-	x = fontmn2->showString("LOADING ", x - 60, (canvasH >> 1) - 16);
+	fontmn2->showString("LOADING ", x - 60, (canvasH >> 1) - 16);
 	fontmn2->showString(string, x, (canvasH >> 1) - 16);
 
 	delete[] string;
@@ -891,7 +891,7 @@ int JJ2Level::load (char *fileName, bool checkpoint) {
 
 
 	// Set the tick at which the level will end, though this is not used
-	endTime = (5 - game->getDifficulty()) * 2 * 60 * 1000;
+	endTime = (5 - (int)game->getDifficulty()) * 2 * 60 * 1000;
 
 
 	// Adjust panel fonts to use bonus level palette

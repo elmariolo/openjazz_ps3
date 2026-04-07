@@ -139,20 +139,20 @@ void JJ2Level::draw () {
 
 
 	// Temporary lines showing the water level
-	drawRect(0, FTOI(waterLevel - viewY), canvasW, 2, 72);
-	drawRect(0, FTOI(waterLevel - viewY) + 3, canvasW, 1, 72);
-	drawRect(0, FTOI(waterLevel - viewY) + 6, canvasW, 1, 72);
-	drawRect(0, FTOI(waterLevel - viewY) + 10, canvasW, 1, 72);
+	video.drawRect(0, FTOI(waterLevel - viewY), canvasW, 2, 72);
+	video.drawRect(0, FTOI(waterLevel - viewY) + 3, canvasW, 1, 72);
+	video.drawRect(0, FTOI(waterLevel - viewY) + 6, canvasW, 1, 72);
+	video.drawRect(0, FTOI(waterLevel - viewY) + 10, canvasW, 1, 72);
 
 
 	// Black-out areas outside the level (for high resolutions)
 
 	if (TTOI(layers[3]->getWidth()) - FTOI(viewX) < canvasW)
-		drawRect(TTOI(layers[3]->getWidth()) - FTOI(viewX), 0,
+		video.drawRect(TTOI(layers[3]->getWidth()) - FTOI(viewX), 0,
 			canvasW, canvasH, JJ2_BLACK);
 
 	if (TTOI(layers[3]->getHeight()) - FTOI(viewY) < canvasH)
-		drawRect(0, TTOI(layers[3]->getHeight()) - FTOI(viewY),
+		video.drawRect(0, TTOI(layers[3]->getHeight()) - FTOI(viewY),
 			TTOI(layers[3]->getWidth()) - FTOI(viewX), canvasH, JJ2_BLACK);
 
 
@@ -169,7 +169,7 @@ void JJ2Level::draw () {
 
 	for (y = 1; y <= x; y++) {
 
-		drawRect(canvasW - (y * 12), 4, 8, 8, 48);
+		video.drawRect(canvasW - (y * 12), 4, 8, 8, 48);
 
 	}
 

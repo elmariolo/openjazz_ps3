@@ -1,117 +1,60 @@
-# OpenJazz makefile
+TARGET		:= openjazz
+TITLE_ID	:= OPJAZZ001
+CONTENT_ID	:= HG0000-$(TITLE_ID)_00-0000111122223333
 
-# Sane defaults
-CXX ?= g++ -std=c++14
-CXXFLAGS ?= -g -Wall -O2
-DEFINES = -DSCALE -DPORTABLE
-CPPFLAGS = $(DEFINES) -Isrc -Iext/scale2x -Iext/psmplug -Iext/miniz -Iext/argparse -Iext/stb
+CC      := ppu-gcc
+CXX     := ppu-g++
+LD      := ppu-g++
+OBJCOPY := ppu-objcopy
 
-# Network support
-CXXFLAGS += -DUSE_SOCKETS
-ifeq ($(OS),Windows_NT)
-	# Only needed under Windows.
-	LIBS += -lws2_32
-endif
+PS3DEV:=/usr/local/ps3dev
+PS3PORTLIBS:=$(PS3DEV)/portlibs/ppu
+PATH:=$(PATH):$(PS3DEV)/bin:$(PS3DEV)/ppu/bin
 
-# SDL1.2 only
-CXXFLAGS += $(shell sdl-config --cflags) -DOJ_SDL1
-LIBS += $(shell sdl-config --libs)
+PKG_DIR		:= "package"
+DATA_SOURCE	:= "gamefiles"
+USR_DIR		:= "$(PKG_DIR)/USRDIR"
+EBOOT_DEST	:= "$(USR_DIR)/EBOOT.BIN"
 
-LIBS += -lm
+SOURCES  := $(shell find src -name "*.cpp") $(shell find ext -name "*.cpp")
+OBJS     := $(SOURCES:.cpp=.o)
+INC_DIRS := $(shell find src -type d) $(shell find ext -type d)
 
-# Libraries
-OJEXTLIBOBJ = \
-	ext/argparse/argparse.o \
-	ext/miniz/miniz.o \
-	ext/stb/stb_rect_pack.o \
-	ext/psmplug/fastmix.o \
-	ext/psmplug/load_psm.o \
-	ext/psmplug/psmplug.o \
-	ext/psmplug/snd_dsp.o \
-	ext/psmplug/snd_flt.o \
-	ext/psmplug/snd_fx.o \
-	ext/psmplug/sndfile.o \
-	ext/psmplug/sndmix.o \
-	ext/scale2x/scale2x.o \
-	ext/scale2x/scale3x.o \
-	ext/scale2x/scalebit.o
+INCLUDES := -I$(PSL1GHT)/ppu/include -I$(PS3PORTLIBS)/include -I$(PS3PORTLIBS)/include/SDL
+INCLUDES += $(addprefix -I, $(INC_DIRS))
 
-# Main engine
-OJOBJS = \
-	src/game/clientgame.o \
-	src/game/game.o \
-	src/game/gamemode.o \
-	src/game/localgame.o \
-	src/game/servergame.o \
-	src/io/controls.o \
-	src/io/file.o \
-	src/io/log.o \
-	src/io/gfx/anim.o \
-	src/io/gfx/font.o \
-	src/io/gfx/paletteeffects.o \
-	src/io/gfx/sprite.o \
-	src/io/gfx/video.o \
-	src/io/network.o \
-	src/io/sound.o \
-	src/level/level.o \
-	src/level/movable.o \
-	src/main.o \
-	src/menu/filemenu.o \
-	src/menu/gamemenu.o \
-	src/menu/mainmenu.o \
-	src/menu/menu.o \
-	src/menu/plasma.o \
-	src/menu/setupmenu.o \
-	src/player/player.o \
-	src/platforms/platform_interface.o \
-	src/setup.o \
-	src/util.o \
-	src/version.o
+COMMON_FLAGS := -g3 $(INCLUDES) -DSDLK_FIRST=0 -DSDLK_LAST=323 -DLSB_FIRST=0 \
+                -O2 -D__PS3__ -DUSE_MODPLUG -DNO_KEYBOARD_CFG -DFULLSCREEN_ONLY -DSCALE -DFULLSCREEN_FLAGS -DENABLE_JJ2 -DLOWERCASE_FILENAMES -DWORDS_BIGENDIAN -DDATAPATH=\"/dev_hdd0/game/$(TITLE_ID)/USRDIR/\"
 
-# Episode 1
-OJ1OBJS = \
-	src/jj1/jj1episodeutils.o \
-	src/jj1/bonuslevel/jj1bonuslevel.o \
-	src/jj1/bonuslevel/jj1bonuslevelplayer.o \
-	src/jj1/level/event/jj1bridge.o \
-	src/jj1/level/event/jj1event.o \
-	src/jj1/level/event/jj1guardians.o \
-	src/jj1/level/event/jj1standardevent.o \
-	src/jj1/level/jj1bird.o \
-	src/jj1/level/jj1bullet.o \
-	src/jj1/level/jj1demolevel.o \
-	src/jj1/level/jj1level.o \
-	src/jj1/level/jj1levelframe.o \
-	src/jj1/level/jj1levelload.o \
-	src/jj1/level/jj1levelplayer.o \
-	src/jj1/level/jj1levelplayerframe.o \
-	src/jj1/planet/jj1planet.o \
-	src/jj1/save/jj1save.o \
-	src/jj1/scene/jj1scene.o \
-	src/jj1/scene/jj1sceneload.o
+CFLAGS   := $(COMMON_FLAGS) -std=gnu99
+CXXFLAGS := $(COMMON_FLAGS) # PSL1GHT usará esto para los .cpp
 
-OBJS = $(OJEXTLIBOBJ) $(OJOBJS) $(OJ1OBJS)
+LIBS     := -L$(PS3PORTLIBS)/lib -L$(PSL1GHT)/ppu/lib \
+            -lSDL_mixer -lSDL -lio -lrt -lsysutil -lgcm_sys -lrsx -laudio -llv2 -lz -lm
 
-# Stamp
-DEPR = .mk-stamp-depr
+include $(PSL1GHT)/ppu_rules
 
-# Build rules
-.PHONY: clean
+all: $(TARGET).self
 
-OpenJazz: $(DEPR) $(OBJS)
-	@-echo [LD] $@
-	@$(CXX) -o OpenJazz $(LDFLAGS) $(OBJS) $(LIBS)
-
-$(DEPR):
-	@-echo "[WARNING] This Makefile is deprecated! Please use CMake, if possible."
-	@-echo "          The old, unmaintained SDL1.2 library is used."
-	@-echo "          Report problems at https://github.com/AlisterT/openjazz/issues"
-	@touch $(DEPR)
-
-%.o: %.cpp
-	@-echo [CXX] $<
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
-
+$(TARGET).elf: $(OBJS)
+	$(LD) $(OBJS) $(LIBS) -o $@
+	rm -rf $(PKG_DIR)
+	mkdir -p $(USR_DIR)
+	cp "PARAM.SFO" "$(PKG_DIR)/PARAM.SFO"
+	cp "PIC1.PNG" "$(PKG_DIR)/PIC1.PNG"
+	cp "ICON0.PNG" "$(PKG_DIR)/ICON0.PNG"
+	-cp -r "$(DATA_SOURCE)"/* "$(USR_DIR)/"
+	bash fixnames.sh
+	
+$(TARGET).self: $(TARGET).elf
+	ppu-strip $< -o $<.strip
+	sprxlinker $<.strip
+	make_self $<.strip $@
+	fself -n $<.strip EBOOT.BIN $(CONTENT_ID)
+	cp EBOOT.BIN "$(EBOOT_DEST)"
+	pkg.py --contentid $(CONTENT_ID) "$(PKG_DIR)/" openjazz_ps3.pkg
+	
 clean:
-	@-echo Cleaning...
-	@rm -f OpenJazz $(OBJS) $(DEPR)
+	rm -rf "$PKG_DIR"
+	mkdir -p "$USR_DIR"
+	rm -f $(OBJS) $(TARGET).elf $(TARGET).elf.strip $(TARGET).self EBOOT.BIN $(TARGET)_ps3.pkg

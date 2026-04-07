@@ -326,87 +326,46 @@ int SetupMenu::setupJoystick () {
  *
  * @return Error code
  */
+int canvasResOptW[] =  {320, 352, 384, 400, 480};
+int canvasResOptH[] = {200, 220, 240, 250, 300};
+	
+int getCanvasResol()
+{	
+	if (canvasW == canvasResOptW[0] && canvasH == canvasResOptH[0]) 
+		return 0;
+	else if (canvasW == canvasResOptW[1] && canvasH == canvasResOptH[1]) 
+		return 1;
+	else if (canvasW == canvasResOptW[2] && canvasH == canvasResOptH[2]) 
+		return 2;
+	else if (canvasW == canvasResOptW[3] && canvasH == canvasResOptH[3]) 
+		return 3;
+	else if (canvasW == canvasResOptW[4] && canvasH == canvasResOptH[4])
+		return 4;
+	
+	return 0;
+}
+
 int SetupMenu::setupVideo () {
-	int widthOptions[] = {SW, 352, 384, 400, 480, 512, 640, 720, 768, 800, 960,
-	    1024, 1152, 1280, 1366, 1400, 1440, 1600, 1680, 1920, 2048, 2560, 3200,
-	    3440, 3840, 4096, MAX_SCREEN_WIDTH};
-	int heightOptions[] = {SH, 240, 288, 300, 320, 384, 400, 480, 576, 600, 720,
-	    768, 800, 864, 900, 960, 1024, 1050, 1080, 1152, 1200, 1440, 1536, 1600,
-	    2048, 2160, MAX_SCREEN_HEIGHT};
-	const char *methodString[4] = { "nearest", "bilinear", "scalex", "hqx"};
-	int scaleFactor = video.getScaleFactor();
-	scalerType scaleMethod = video.getScaleMethod();
-	int screenW, screenH, oldscreenW, oldscreenH, x, y;
-	screenW = oldscreenW = video.getWidth();
-	screenH = oldscreenH = video.getHeight();
+
+	int scaleFactor = 1;
+	scalerType scaleMethod = scalerType::None;
+	
+	int canvasResol, old_canvasResol;
+	canvasResol = old_canvasResol = getCanvasResol();
+	
+	int x, y;
 	int selection = 0;
 	bool resOK = true;
-
-	char scaleString[3] = "Yx";
-	bool fillScaleString = true;
+	
 	char resString[22] = "game res: XXXX x YYYY";
 	bool fillResString = true;
 	int resStringWidth = 0;
-
-	// helpers
-	auto changeWidth = [&] (bool isPositive) {
-		int count = 0;
-		if(isPositive && (screenW < video.getMaxWidth())) {
-			while (screenW >= widthOptions[count])
-				count++;
-
-			screenW = widthOptions[count];
-		} else if (!isPositive && (screenW > video.getMinWidth())) {
-			count = sizeof(widthOptions)/sizeof(widthOptions[0]) - 1;
-			while (screenW <= widthOptions[count])
-				count--;
-
-			screenW = widthOptions[count];
-		}
-	};
-	auto changeHeight = [&] (bool isPositive) {
-		int count = 0;
-		if(isPositive && (screenH < video.getMaxHeight())) {
-			while (screenH >= heightOptions[count])
-				count++;
-
-			screenH = heightOptions[count];
-		} else if (!isPositive && (screenH > video.getMinHeight())) {
-			count = sizeof(heightOptions)/sizeof(heightOptions[0]) - 1;
-			while (screenH <= heightOptions[count])
-				count--;
-
-			screenH = heightOptions[count];
-		}
-	};
-	auto changeScaleFactor = [&] (bool isPositive) {
-		if(isPositive && scaleFactor < MAX_SCALE)
-			scaleFactor++;
-		else if (!isPositive && scaleFactor > MIN_SCALE)
-			scaleFactor--;
-	};
-	auto changeScaleMethod = [&] (bool isPositive) {
-		// TODO
-#if 0
-		if (isPositive && scaleMethod != scalerType::hqx)
-			scaleMethod = static_cast<scalerType>(+scaleMethod + 1);
-		else if(!isPositive && scaleMethod != scalerType::None)
-			scaleMethod = static_cast<scalerType>(+scaleMethod - 1);
-#else
-	OJ_UNUSED(isPositive);
-
-	#if OJ_SDL3 || OJ_SDL2
-	if(scaleMethod != scalerType::None)
-		scaleMethod = scalerType::None;
-	else
-		scaleMethod = scalerType::Bilinear;
-	#else
-	if(scaleMethod != scalerType::None)
-		scaleMethod = scalerType::None;
-	else
-		scaleMethod = scalerType::Scale2x;
-	#endif
-#endif
+	
+	auto changeCanvasResol = [&] (bool isPositive) {
+		if(isPositive && canvasResol < 4)
+			canvasResol++;
+		else if (!isPositive && canvasResol > 0)
+			canvasResol--;
 	};
 
 	auto switchPalette = [] (bool activate) {
@@ -431,15 +390,12 @@ int SetupMenu::setupVideo () {
 			if ((x >= 32) && (x < 132) && (y >= canvasH - 12)
 				&& controls.wasCursorReleased())
 				return E_NONE;
-
-			// TODO: selection? not feasible with one button
 		}
 
 		SDL_Delay(T_MENU_FRAME);
 
 		video.clearScreen(0);
-
-
+		
 		// Show screen corners
 		video.drawRect(0, 0, 32, 32, 79);
 		video.drawRect(canvasW - 32, 0, 32, 32, 79);
@@ -450,43 +406,23 @@ int SetupMenu::setupVideo () {
 
 		// Game Resolution
 		if(fillResString) {
-			snprintf(resString, sizeof(resString), "game res: %d x %d", canvasW, canvasH);
+			snprintf(resString, sizeof(resString), "game res: %d x %d", canvasResOptW[old_canvasResol], canvasResOptH[old_canvasResol]);
 			resStringWidth = fontmn2->getStringWidth(resString);
-			fillResString = false;
+			//fillResString = false;
 		}
 		video.drawRect(((canvasW - resStringWidth) >> 1) - 4, (canvasH >> 1) - 50, resStringWidth + 4, 14, 46);
 		fontmn2->showString(resString, (canvasW - resStringWidth) >> 1, (canvasH >> 1) - 48);
 
 		switchPalette(selection == 0);
-
-		// Width
-		fontmn2->showString("width:", (canvasW >> 1) - 80, (canvasH >> 1) - 16);
-		fontmn2->showNumber(screenW, (canvasW >> 1) + 48, (canvasH >> 1) - 16);
-
-		switchPalette(selection == 1);
-
-		// Height
-		fontmn2->showString("height:", (canvasW >> 1) - 80, canvasH >> 1);
-		fontmn2->showNumber(screenH, (canvasW >> 1) + 48, canvasH >> 1);
-
-		switchPalette(selection == 2);
-
-		// Factor
-		if(fillScaleString) {
-			snprintf(scaleString, sizeof(scaleString), "%dx", scaleFactor);
-			fillScaleString = false;
-		}
+		
+		char canvasResString[15] = "(0): 320 x 200";
+		snprintf(canvasResString, sizeof(canvasResString), "(%d): %d x %d", canvasResol, canvasResOptW[canvasResol], canvasResOptH[canvasResol]);
 		fontmn2->showString("scale:", (canvasW >> 1) - 80, (canvasH >> 1) + 16);
-		fontmn2->showString(scaleString, (canvasW >> 1) + 8, (canvasH >> 1) + 16);
-
-		switchPalette(selection == 3);
-
-		// Method
-		fontmn2->showString("method:", (canvasW >> 1) - 80, (canvasH >> 1) + 32);
-		fontmn2->showString(methodString[+scaleMethod], (canvasW >> 1) + 8, (canvasH >> 1) + 32);
-
+		fontmn2->showString(canvasResString, (canvasW >> 1) + 8, (canvasH >> 1) + 16);
+		
 		switchPalette(false);
-
+	
+		/*
 		if (controls.release(C_UP)) {
 			if(selection > 0)
 				selection--;
@@ -500,30 +436,21 @@ int SetupMenu::setupVideo () {
 			else
 				selection = 0;
 		}
-
+		*/
+		
 		bool hasPressedRight = controls.release(C_RIGHT);
-		if (controls.release(C_LEFT) || hasPressedRight) {
+		bool hasPressedLeft = controls.release(C_LEFT);
+		
+		if (hasPressedLeft || hasPressedRight) {
 			switch(selection) {
 			case 0:
-				changeWidth(hasPressedRight);
-				break;
-			case 1:
-				changeHeight(hasPressedRight);
-				break;
-			case 2:
-				changeScaleFactor(hasPressedRight);
-				fillScaleString = true;
-				break;
-			case 3:
-				changeScaleMethod(hasPressedRight);
-				break;
+				changeCanvasResol(hasPressedRight);
 			}
 			resOK = true;
 		}
 
 		// Check for a resolution or scaling change
-		if (screenH != oldscreenH || screenW != oldscreenW ||
-			scaleFactor != video.getScaleFactor() || scaleMethod != video.getScaleMethod()) {
+		if (canvasResol != old_canvasResol) {
 
 			fontmn2->showString(resOK ? "press enter to apply" : "invalid resolution!",
 				(canvasW >> 1), (canvasH >> 1) + 56, alignX::Center);
@@ -531,22 +458,11 @@ int SetupMenu::setupVideo () {
 			// Apply resolution change
 			if (controls.release(C_ENTER)) {
 				playConfirmSound();
-
-				if (video.reset(screenW, screenH)) {
-					// New resolution is ok
-					oldscreenW = screenW;
-					oldscreenH = screenH;
-
-					video.setScaling(scaleFactor, scaleMethod);
-					scaleFactor = video.getScaleFactor();
-					scaleMethod = video.getScaleMethod();
-
-					fillResString = true;
-					fillScaleString = true;
-				} else {
-					// It failed, reset to sanity
-					video.reset(oldscreenW, oldscreenH);
-					resOK = false;
+				
+				if(video.reset(canvasResOptW[canvasResol], canvasResOptH[canvasResol]))
+				{
+					old_canvasResol = canvasResol = getCanvasResol();
+					video.setScaling(scaleFactor, scaleMethod);	
 				}
 			}
 		}

@@ -34,17 +34,7 @@
 #include <unistd.h>
 #include <miniz.h>
 
-#ifdef OJ_SDL3
-	#include <SDL3/SDL.h>
-#else
-	#include <SDL.h>
-#endif
-
-#if !(defined(_WIN32) || defined(WII) || defined(PSP))
-    #define UPPERCASE_FILENAMES
-    #define LOWERCASE_FILENAMES
-#endif
-
+#include <SDL.h>
 
 /**
  * Try opening a file from the available paths.
@@ -334,6 +324,9 @@ unsigned char* File::loadRLE (int length, bool checkSize) {
 
 	if (checkSize) {
 		// Determine the offset that follows the block
+		//unsigned char b[2];
+		//fread(b, 1, 2, file);
+		//size = (int)(b[0] | (b[1] << 8));
 		size = loadShort();
 	}
 	int start = tell();

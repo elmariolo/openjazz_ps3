@@ -176,15 +176,16 @@ void startUp (const char *argv0, int pathCount, char *paths[]) {
 	SetupOptions config;
 
 	// Determine paths
-	platform->AddGamePaths();
+	//platform->AddGamePaths();
 
 	// Use any provided paths
-	for (int i = 0; i < pathCount; i++)
-		gamePaths.add(createString(paths[i]), PATH_TYPE_GAME);
+	//for (int i = 0; i < pathCount; i++)
+	//	gamePaths.add(createString(paths[i]), PATH_TYPE_GAME);
 
 
 	// Use the path of the program, but check before, since it is not always available
 	// At least crashes in Dolphin emulator (Wii) and 3DS (.cia build)
+	/*
 	if (argv0) {
 
 		int i = strlen(argv0) - 1;
@@ -200,15 +201,14 @@ void startUp (const char *argv0, int pathCount, char *paths[]) {
 			gamePaths.add(dir, PATH_TYPE_SYSTEM|PATH_TYPE_GAME);
 
 		}
-
-	}
+	}*/
 
 	// Use the current working directory
-	gamePaths.add(createString(""), PATH_TYPE_GAME|PATH_TYPE_CONFIG|PATH_TYPE_TEMP);
+	//gamePaths.add(createString(""), PATH_TYPE_GAME|PATH_TYPE_CONFIG|PATH_TYPE_TEMP);
 
 	// Use hard-coded data paths, if available
 #ifdef DATAPATH
-	gamePaths.add(createString(DATAPATH), PATH_TYPE_SYSTEM|PATH_TYPE_GAME);
+	gamePaths.add(createString(DATAPATH), PATH_TYPE_SYSTEM|PATH_TYPE_GAME|PATH_TYPE_CONFIG);
 #endif
 
 	// Default settings

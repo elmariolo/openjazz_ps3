@@ -26,11 +26,7 @@
 #include "paletteeffects.h"
 #include "platforms/platforms.h"
 
-#ifdef OJ_SDL3
-	#include <SDL3/SDL.h>
-#else
-	#include <SDL.h>
-#endif
+#include <SDL.h>
 
 // Constants
 
@@ -58,24 +54,15 @@
 #endif
 
 // Fullscreen and Window flags are only for SDL1.2
-#if OJ_SDL2 || OJ_SDL3
-	#ifdef WINDOWED_FLAGS
-		#pragma message "Ignoring WINDOWED_FLAGS when not building with SDL 1.2"
-	#endif
-	#ifdef FULLSCREEN_FLAGS
-		#pragma message "Ignoring FULLSCREEN_FLAGS when not building with SDL 1.2"
-	#endif
-#else
-	#ifndef WINDOWED_FLAGS
-		#define WINDOWED_FLAGS (SDL_RESIZABLE | SDL_DOUBLEBUF | SDL_HWSURFACE | SDL_HWPALETTE)
-	#endif
-	#ifndef FULLSCREEN_FLAGS
-		#define FULLSCREEN_FLAGS (SDL_FULLSCREEN | SDL_DOUBLEBUF | SDL_HWSURFACE | SDL_HWPALETTE)
-	#endif
+#ifndef WINDOWED_FLAGS
+	#define WINDOWED_FLAGS (SDL_RESIZABLE | SDL_DOUBLEBUF | SDL_HWSURFACE | SDL_HWPALETTE)
+#endif
+#ifndef FULLSCREEN_FLAGS
+	#define FULLSCREEN_FLAGS (SDL_FULLSCREEN | SDL_DOUBLEBUF | SDL_HWSURFACE | SDL_HWPALETTE)
 #endif
 
 // Time interval
-#define T_MENU_FRAME 20
+#define T_MENU_FRAME 0
 
 // Class
 
@@ -114,7 +101,8 @@ class Video {
 		scalerType getScaleMethod        () const;
 		void       setScaling            (int newScaleFactor, scalerType newScaleMethod);
 		bool       isFullscreen          () const;
-
+		int		   getCanvasWidth        ();
+		int		   getCanvasHeight       ();
 		void       moviePlayback         (bool status);
 
 		void       update                (SDL_Event *event);
@@ -176,7 +164,6 @@ inline bool Video::isFullscreen () const { return fullscreen; } ///< Determines 
 EXTERN SDL_Surface* canvas; ///< Surface used for drawing
 EXTERN int          canvasW; ///< Drawing surface width
 EXTERN int          canvasH; ///< Drawing surface height
-
 EXTERN Video video; ///< Video output
 
 #endif

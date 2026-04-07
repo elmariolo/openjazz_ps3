@@ -647,7 +647,7 @@ void OtherJJ2Event::draw (unsigned int ticks, int change) {
 
 			} else if (!endTime) {
 
-				drawRect(FTOI(drawX) + 8, FTOI(drawY) + 8, 16, 16, type);
+				video.drawRect(FTOI(drawX) + 8, FTOI(drawY) + 8, 16, 16, type);
 
 			}
 

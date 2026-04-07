@@ -27,35 +27,16 @@
 #include "util.h"
 #include "io/log.h"
 #include "platforms/platforms.h"
-#if OJ_SDL3
-	#include <SDL3/SDL_audio.h>
-#else
-	#include <SDL_audio.h>
-#endif
+#include <SDL_audio.h>
 #include <psmplug.h>
 #include <cassert>
 
 // default configuration
 
-#ifndef SOUND_FREQ
-	#define SOUND_FREQ 44100
-#endif
-#ifndef SOUND_SAMPLES
-	#define SOUND_SAMPLES 2048
-#endif
-#if MUSIC_SETTINGS == 0
-	// low
-	#define MUSIC_RESAMPLEMODE MODPLUG_RESAMPLE_LINEAR
-	#define MUSIC_FLAGS 0
-#elif MUSIC_SETTINGS == 1
-	// mid
-	#define MUSIC_RESAMPLEMODE MODPLUG_RESAMPLE_LINEAR
-	#define MUSIC_FLAGS MODPLUG_ENABLE_MEGABASS
-#else
-	// high
-	#define MUSIC_RESAMPLEMODE MODPLUG_RESAMPLE_FIR
-	#define MUSIC_FLAGS MODPLUG_ENABLE_NOISE_REDUCTION | MODPLUG_ENABLE_REVERB | MODPLUG_ENABLE_MEGABASS | MODPLUG_ENABLE_SURROUND
-#endif
+#define SOUND_FREQ 48000
+#define SOUND_SAMPLES 1024
+#define MUSIC_RESAMPLEMODE MODPLUG_RESAMPLE_LINEAR//MODPLUG_RESAMPLE_FIR
+#define MUSIC_FLAGS MODPLUG_ENABLE_NOISE_REDUCTION | MODPLUG_ENABLE_REVERB | MODPLUG_ENABLE_MEGABASS | MODPLUG_ENABLE_SURROUND
 
 // Datatype
 
@@ -82,53 +63,22 @@ namespace {
 	bool soundsLoaded = false;
 	ModPlugFile *musicFile = nullptr;
 	SDL_AudioSpec audioSpec = {};
+	SDL_AudioCVT audioCvt = {};
 	bool musicPaused = false;
 	int musicVolume = MAX_VOLUME >> 1; // 50%
 	int soundVolume = MAX_VOLUME >> 2; // 25%
 	char *currentMusic = nullptr;
 	MusicTempo musicTempo = MusicTempo::NORMAL;
 
-	#if OJ_SDL3
-	SDL_AudioStream *audioStream = nullptr;
-	#elif OJ_SDL2
-	SDL_AudioDeviceID audioDevice = 0;
-	#endif
-
 	// Helpers
 
 	void LockAudio() {
-	#if OJ_SDL3
-		// not needed
-		//SDL_LockAudioStream();
-	#elif OJ_SDL2
-		SDL_LockAudioDevice(audioDevice);
-	#else
 		SDL_LockAudio();
-	#endif
 	}
 	void UnlockAudio() {
-	#if OJ_SDL3
-		// not needed
-		//SDL_UnlockAudioStream();
-	#elif OJ_SDL2
-		SDL_UnlockAudioDevice(audioDevice);
-	#else
 		SDL_UnlockAudio();
-	#endif
 	}
-	#if !OJ_SDL3 && !OJ_SDL2
-	int SDL_AUDIO_BITSIZE(int format) {
-		if (format == AUDIO_U8 || audioSpec.format == AUDIO_S8)
-			return 8;
-		else if (format == AUDIO_S16MSB || audioSpec.format == AUDIO_S16LSB ||
-			format == AUDIO_U16MSB || audioSpec.format == AUDIO_U16LSB)
-			return 16;
-
-		LOG_ERROR("Unsupported Audio format.");
-		return 0;
-	}
-	#endif
-
+	
 	/**
 	 * Callback used to provide data to the audio subsystem.
 	 *
@@ -137,60 +87,75 @@ namespace {
 	 * @param len Length of data to be placed in the output stream
 	 */
 	void audioCallback (void * /*userdata*/, unsigned char * stream, int len) {
-		// Clear audio buffer
-		memset(stream, '\0', len * sizeof(unsigned char));
+		// 1. Limpieza inicial del buffer de salida
+		memset(stream, 0, len);
 
-		if (musicFile && !musicPaused) {
-			// Read the next portion of music into the stream
-			ModPlug_Read(musicFile, stream, len);
+		// Ajuste de longitud para PS3 (si cvt es necesaria)
+		int workingLen = len;
+		if (audioCvt.needed) {
+			workingLen /= audioCvt.len_mult;
 		}
 
-		if (!soundsLoaded) return;
+		int16_t *feedme = (int16_t *)stream;
 
+		// --- SECCIÓN DE MÚSICA (MODPLUG) ---
+		if (musicFile && !musicPaused) {
+			// Leemos la música directamente sobre el buffer inicial (stream)
+			// ModPlug_Read llenará 'workingLen' bytes en formato S16BE/LE según configuraste
+			int bytesRead = ModPlug_Read(musicFile, stream, workingLen);
+
+			if (bytesRead > 0) {
+				// Aplicamos el factor de volumen de la música manualmente
+				// para mantener el control total sobre la ganancia
+				float musicVolFactor = musicVolume / (float)MAX_VOLUME;
+				int numMusicSamples = bytesRead / sizeof(int16_t);
+
+				for (int smp = 0; smp < numMusicSamples; smp++) {
+					feedme[smp] = (int16_t)(feedme[smp] * musicVolFactor);
+				}
+			}
+		}
+
+		// --- SECCIÓN DE EFECTOS (MIXING ARITMÉTICO) ---
+		// Tu lógica actual de SFX se mantiene casi igual, 
+		// pero ahora "suma" sobre lo que ModPlug ya escribió.
 		for (int i = SE::NONE; i < SE::MAX; i++) {
 			if (!sounds[i].data || sounds[i].position < 0) continue;
 
+			// Factor de volumen para SFX (ajustado para evitar saturación masiva)
+			float soundVolFactor = (soundVolume / (float)MAX_VOLUME);
+
 			int rest = sounds[i].length - sounds[i].position;
-			int length = 0;
+			int length = (workingLen < rest) ? workingLen : rest;
 			int position = sounds[i].position;
 
-			if (len < rest) {
-				// Play as much of the clip as possible
-				length = len;
-				sounds[i].position += len;
-			} else {
-				// Play the remainder of the clip
-				length = rest;
-				sounds[i].position = -1;
+			int16_t *soundData16 = (int16_t *)(sounds[i].data + position);
+			int soundSamples = length / sizeof(int16_t);
+
+			for (int smp = 0; smp < soundSamples; smp++) {
+				// MEZCLA SEGURA: Sumamos el sample de música + el de efecto
+				int32_t mixed = (int32_t)feedme[smp] + (int32_t)(soundData16[smp] * soundVolFactor);
+				
+				// Saturación manual (Clipping) para evitar ruido metálico
+				if (mixed > 32767) mixed = 32767;
+				else if (mixed < -32768) mixed = -32768;
+				
+				feedme[smp] = (int16_t)mixed;
 			}
 
-			// Add the next portion of the sound clip to the audio stream
-	#if OJ_SDL3
-			SDL_MixAudio(stream, sounds[i].data + position, audioSpec.format, length,
-				soundVolume / (float)MAX_VOLUME);
-	#elif OJ_SDL2
-			SDL_MixAudioFormat(stream, sounds[i].data + position, audioSpec.format,
-				length, soundVolume * SDL_MIX_MAXVOLUME / MAX_VOLUME);
-	#else
-			SDL_MixAudio(stream, sounds[i].data + position, length,
-				soundVolume * SDL_MIX_MAXVOLUME / MAX_VOLUME);
-	#endif
+			// Actualizar posición del sonido
+			if (workingLen < rest) sounds[i].position += workingLen;
+			else sounds[i].position = -1;
 		}
-	}
 
-	#if OJ_SDL3
-	void wrapperAudioCallback(void *userdata, SDL_AudioStream *stream, int additional_amount, int /* total_amount */) {
-		if (additional_amount > 0) {
-			Uint8 *data = SDL_stack_alloc(Uint8, additional_amount);
-			if (data) {
-				// call old function
-				audioCallback(userdata, data, additional_amount);
-				SDL_PutAudioStreamData(stream, data, additional_amount);
-				SDL_stack_free(data);
-			}
+		// --- CONVERSIÓN FINAL PARA PS3 ---
+		if (audioCvt.needed) {
+			audioCvt.buf = stream;
+			audioCvt.len = workingLen;
+			SDL_ConvertAudio(&audioCvt);
 		}
 	}
-	#endif
+	
 }
 
 /**
@@ -200,62 +165,31 @@ void openAudio () {
 	bool audioOk = false;
 
 	// Set up SDL audio
-#if OJ_SDL3
-	audioSpec = { SDL_AUDIO_S16, 2, SOUND_FREQ };
-	audioStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-		&audioSpec, wrapperAudioCallback, nullptr);
-	audioOk = (audioStream != nullptr);
-#else
 	SDL_AudioSpec asDesired = {};
 	asDesired.freq = SOUND_FREQ;
-	asDesired.format = AUDIO_S16SYS;
+	asDesired.format = AUDIO_S16MSB;
 	asDesired.channels = 2;
 	asDesired.samples = SOUND_SAMPLES;
 	asDesired.callback = audioCallback;
 	asDesired.userdata = nullptr;
 
-	#if OJ_SDL2
-	audioDevice = SDL_OpenAudioDevice(nullptr, 0, &asDesired, &audioSpec,
-		SDL_AUDIO_ALLOW_ANY_CHANGE);
-
-	if(!audioDevice || SDL_AUDIO_ISFLOAT(audioSpec.format) ||
-		(SDL_AUDIO_BITSIZE(audioSpec.format) != 8 && SDL_AUDIO_BITSIZE(audioSpec.format) != 16)) {
-		LOG_DEBUG("SDL audio format unsupported, letting SDL convert it.");
-
-		if(audioDevice) SDL_CloseAudioDevice(audioDevice);
-
-		audioDevice = SDL_OpenAudioDevice(nullptr, 0, &asDesired, &audioSpec, 0);
-	}
-	audioOk = (audioDevice != 0);
-	#else
 	audioOk = (SDL_OpenAudio(&asDesired, &audioSpec) == 0);
-	#endif
-#endif
 
 	if(!audioOk) {
 		LOG_ERROR("Unable to open audio: %s", SDL_GetError());
 		return;
 	}
 
-#if OJ_SDL3
-	LOG_DEBUG("Opened %dHz Audio at %d bit, %d channels",
-		audioSpec.freq, SDL_AUDIO_BITSIZE(audioSpec.format), audioSpec.channels);
-#else
 	LOG_DEBUG("Opened %dHz Audio at %d bit, %d channels with %d samples",
 		audioSpec.freq, SDL_AUDIO_BITSIZE(audioSpec.format), audioSpec.channels, audioSpec.samples);
-#endif
 
+	SDL_BuildAudioCVT(&audioCvt, asDesired.format, asDesired.channels, asDesired.freq, audioSpec.format, audioSpec.channels, audioSpec.freq);
+	
 	// Load sounds
 	soundsLoaded = loadSounds("SOUNDS.000");
 
 	// Start audio for sfx to work
-#if OJ_SDL3
-	SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(audioStream));
-#elif OJ_SDL2
-	SDL_PauseAudioDevice(audioDevice, 0);
-#else
 	SDL_PauseAudio(0);
-#endif
 }
 
 
@@ -265,15 +199,7 @@ void openAudio () {
 void closeAudio () {
 	stopMusic();
 
-#if OJ_SDL3
-	SDL_CloseAudioDevice(SDL_GetAudioStreamDevice(audioStream));
-	SDL_DestroyAudioStream(audioStream);
-#elif OJ_SDL2
-	SDL_CloseAudioDevice(audioDevice);
-	audioDevice = 0;
-#else
 	SDL_CloseAudio();
-#endif
 
 	if (rawSounds) {
 		for (int i = 0; i < nRawSounds; i++) {
@@ -327,9 +253,9 @@ void playMusic (const char * fileName, bool restart) {
 	// Set up libpsmplug
 	ModPlug_Settings settings = {};
 	settings.mFlags = MUSIC_FLAGS;
-	settings.mChannels = audioSpec.channels;
-	settings.mBits = SDL_AUDIO_BITSIZE(audioSpec.format);
-	settings.mFrequency = audioSpec.freq;
+	settings.mChannels = 2;//audioSpec.channels;
+	settings.mBits = 16;//SDL_AUDIO_BITSIZE(audioSpec.format);
+	settings.mFrequency = 48000;//audioSpec.freq;
 	settings.mResamplingMode = MUSIC_RESAMPLEMODE;
 	settings.mReverbDepth = 25;
 	settings.mReverbDelay = 40;

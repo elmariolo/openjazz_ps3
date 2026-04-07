@@ -25,11 +25,7 @@
 
 #include "menu/menu.h"
 
-#ifdef OJ_SDL3
-	#include <SDL3/SDL.h>
-#else
-	#include <SDL.h>
-#endif
+#include <SDL.h>
 
 // Macros
 

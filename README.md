@@ -1,3 +1,34 @@
+This is a fork (and port to Playstation 3) taken from the following repository,
+credits to the respective project and team behind it:
+
+https://github.com/AlisterT/openjazz
+
+== ABOUT THIS PS3 PORT =========================================================
+
+This is my second port of a game in my life.
+
+I've loved this game since I was a kid in 1996. 
+My parents bought me my first PC, an Acer Aspire,
+and it came with a demo of this game.
+
+From that moment on, I haven't been able to forget those games and that time. 
+More ports from that era are coming soon...
+
+Go and check my first port of other game: Tyrian
+https://github.com/elmariolo/opentyrian_ps3
+
+== Build the game package ======================================================
+
+To build this port, please get a linux PC and install the Toolchain and SDK for PS3
+You can check here to build the toolchain: https://github.com/ps3dev/ps3toolchain
+
+Then clone this repository, copy the game data files to the gamefiles folder,
+and build as usual using: make clean & make
+
+If everything goes well, you will have the package ready to install on PS3 at the root folder.
+________________________________________________________________________________
+
+== Original Repository : README ==================================================
 
 # ![OJ Logo][logo] OpenJazz
 
