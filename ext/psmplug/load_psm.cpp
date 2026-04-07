@@ -130,9 +130,14 @@ BOOL CSoundFile::ReadPSM(LPCBYTE lpStream, DWORD dwMemLength)
 	}
 	while (dwMemPos+8 < dwMemLength)
 	{
+		// Validate minimum space for PSMCHUNK structure
+		if (dwMemPos + sizeof(PSMCHUNK) > dwMemLength) break;
+		
 		PSMCHUNK *pchunk = (PSMCHUNK *)(lpStream+dwMemPos);
 		swap_PSMCHUNK(pchunk);
-		if ((pchunk->len >= dwMemLength - 8) || (dwMemPos + pchunk->len + 8 > dwMemLength)) break;
+		
+		// Validate chunk length against available memory
+		if ((pchunk->len >= dwMemLength - 8) || (pchunk->len > dwMemLength) || (dwMemPos + pchunk->len + 8 > dwMemLength)) break;
 		dwMemPos += 8;
 		PUCHAR pdata = (PUCHAR)(lpStream+dwMemPos);
 		ULONG len = pchunk->len;
@@ -206,19 +211,36 @@ BOOL CSoundFile::ReadPSM(LPCBYTE lpStream, DWORD dwMemLength)
 		dwMemPos += pchunk->len;
 	}
 	// Step #1: convert song structure
+	if (!dwSongPos) return TRUE;
+	
+	// Validate song position is within memory bounds
+	if (dwSongPos + 8 + sizeof(PSMSONGHDR) > dwMemLength) return TRUE;
+	
 	PSMSONGHDR *pSong = (PSMSONGHDR *)(lpStream+dwSongPos+8);
-	if ((!dwSongPos) || (pSong->channels < 2) || (pSong->channels > 32)) return TRUE;
+	if ((pSong->channels < 2) || (pSong->channels > 32)) return TRUE;
 	m_nChannels = pSong->channels;
 	// Valid song header -> convert attached chunks
 	{
+		// Validate read position for song header length
+		if (dwSongPos + 4 + sizeof(DWORD) > dwMemLength) return TRUE;
+		
 		DWORD dwSongEnd = dwSongPos + 8 + READ_LE32(lpStream+dwSongPos+4);
+		
+		// Cap dwSongEnd to prevent overflow
+		if (dwSongEnd > dwMemLength) dwSongEnd = dwMemLength;
+		
 		dwMemPos = dwSongPos + 8 + 11; // sizeof(PSMCHUNK)+sizeof(PSMSONGHDR)
-		while (dwMemPos + 8 < dwSongEnd)
+		while (dwMemPos + 8 < dwSongEnd && dwMemPos + 8 < dwMemLength)
 		{
+			// Validate space for chunk header
+			if (dwMemPos + sizeof(PSMCHUNK) > dwMemLength) break;
+			
 			PSMCHUNK *pchunk = (PSMCHUNK *)(lpStream+dwMemPos);
 			swap_PSMCHUNK(pchunk);
 			dwMemPos += 8;
-			if ((pchunk->len > dwSongEnd) || (dwMemPos + pchunk->len > dwSongEnd)) break;
+			
+			// Validate chunk length
+			if ((pchunk->len > dwSongEnd) || (pchunk->len > dwMemLength) || (dwMemPos + pchunk->len > dwMemLength)) break;
 			PUCHAR pdata = (PUCHAR)(lpStream+dwMemPos);
 			ULONG len = pchunk->len;
 			switch(pchunk->id)
@@ -231,9 +253,11 @@ BOOL CSoundFile::ReadPSM(LPCBYTE lpStream, DWORD dwMemLength)
 					{
 						BOOL bFound = FALSE;
 						pos -= 5;
+						if (pos + 4 > len) break;
 						DWORD dwName = READ_LE32(pdata+pos);
 						for (UINT i=0; i<nPatterns; i++)
 						{
+							if (patptrs[i] + 12 + sizeof(DWORD) > dwMemLength) continue;
 							DWORD dwPatName = READ_LE32(lpStream+patptrs[i]+12);
 							if (dwName == dwPatName)
 							{
@@ -241,7 +265,7 @@ BOOL CSoundFile::ReadPSM(LPCBYTE lpStream, DWORD dwMemLength)
 								break;
 							}
 						}
-						if ((!bFound) && (pdata[pos+1] > 0) && (pdata[pos+1] <= 0x10)
+					if ((!bFound) && (pos+3 < len) && (pdata[pos+1] > 0) && (pdata[pos+1] <= 0x10)
 						 && (pdata[pos+3] > 0x40) && (pdata[pos+3] < 0xC0))
 						{
 							m_nDefaultSpeed = pdata[pos+1];
@@ -252,9 +276,11 @@ BOOL CSoundFile::ReadPSM(LPCBYTE lpStream, DWORD dwMemLength)
 					UINT iOrd = 0;
 					while ((pos+5<len) && (iOrd < MAX_ORDERS))
 					{
+						if (pos + 4 > len) break;
 						DWORD dwName = READ_LE32(pdata+pos);
 						for (UINT i=0; i<nPatterns; i++)
 						{
+							if (patptrs[i] + 12 + sizeof(DWORD) > dwMemLength) continue;
 							DWORD dwPatName = READ_LE32(lpStream+patptrs[i]+12);
 							if (dwName == dwPatName)
 							{
@@ -274,8 +300,13 @@ BOOL CSoundFile::ReadPSM(LPCBYTE lpStream, DWORD dwMemLength)
 	// Step #2: convert patterns
 	for (UINT nPat=0; nPat<nPatterns; nPat++)
 	{
+		// Validate pattern pointer is within bounds
+		if (patptrs[nPat] + 8 + sizeof(PSMPATTERN) > dwMemLength) continue;
+		
 		PSMPATTERN *pPsmPat = (PSMPATTERN *)(lpStream+patptrs[nPat]+8);
 		swap_PSMPATTERN(pPsmPat);
+		// Validate read position for pattern length
+		if (patptrs[nPat] + 4 + sizeof(DWORD) > dwMemLength) continue;
 		ULONG len = *(DWORD *)(lpStream+patptrs[nPat]+4) - 12;
 		UINT nRows = pPsmPat->rows;
 		if (len > pPsmPat->size) len = pPsmPat->size;
